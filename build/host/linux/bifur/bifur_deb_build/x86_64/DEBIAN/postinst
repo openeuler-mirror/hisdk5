@@ -1,0 +1,9 @@
+#!/bin/bash
+
+echo "Installing... Please wait for a moment."
+
+depmod -a
+
+update-initramfs -u -v -k $(uname -r) >/dev/null 2>&1
+
+echo "Install hibifur5 driver package successfully."

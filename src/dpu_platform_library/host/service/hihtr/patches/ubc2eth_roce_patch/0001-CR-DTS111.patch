@@ -1,0 +1,245 @@
+From 288ab5a15e0cd329d423159ef7434805240b7ca1 Mon Sep 17 00:00:00 2001
+From: s00893904 <s00893904@notesmail.huawei.com>
+Date: Mon, 14 Jul 2025 15:31:32 +0800
+Subject: [PATCH] =?UTF-8?q?=E9=97=AE=E9=A2=98=E5=8D=95/=E9=9C=80=E6=B1=82/?=
+ =?UTF-8?q?CR=E5=8D=95=E5=8F=B7=EF=BC=9ADTS111=20=E4=BF=AE=E6=94=B9?=
+ =?UTF-8?q?=E5=8E=9F=E5=9B=A0=EF=BC=9A=E9=80=82=E9=85=8DUBC2ETH=E4=B8=ADro?=
+ =?UTF-8?q?ce=E9=A9=B1=E5=8A=A8=E9=80=9A=E8=B7=AF=E5=8A=9F=E8=83=BD?=
+ =?UTF-8?q?=E9=AA=8C=E8=AF=81=20=E4=BF=AE=E6=94=B9=E6=8F=8F=E8=BF=B0?=
+ =?UTF-8?q?=EF=BC=9A11=20=E9=9C=80=E8=A6=81=E5=90=8C=E6=AD=A5=E7=9A=84?=
+ =?UTF-8?q?=E5=85=B6=E4=BB=96=E5=88=86=E6=94=AF=EF=BC=9ANA=20=E6=98=AF?=
+ =?UTF-8?q?=E5=90=A6=E7=AC=A6=E5=90=88=E8=AE=BE=E8=AE=A1=E7=BA=A6=E6=9D=9F?=
+ =?UTF-8?q?=EF=BC=9AY?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ open_source/hns_roce_v2r12/kernel/CMakeLists.txt    | 13 +++++++++++++
+ open_source/hns_roce_v2r12/kernel/Makefile          |  8 ++++++--
+ open_source/hns_roce_v2r12/kernel/hihtr_main.c   | 13 +++++++------
+ open_source/hns_roce_v2r12/user/hihtr_u_abi.h    | 12 ++++++++++++
+ open_source/hns_roce_v2r12/user/hihtr_u_verbs.c  |  6 ++++++
+ .../fw/imp/roce/cfg_bin/ncl_cfg_1h/NCL0.yaml        | 10 +++++-----
+ .../host/sdk/knldk/lld/hinic5_ubus.c                |  5 +++++
+ .../host/service/nic/linux/ctrl/hinic5_main.c       |  2 +-
+ .../cfg_data/fpga/roce/eth_4x25G_1h_roce.xml        |  2 +-
+ .../cfg_excel/fpga/roce/eth_4x25G_1h_roce.xlsm      |  4 ++--
+ 10 files changed, 58 insertions(+), 17 deletions(-)
+ create mode 100644 open_source/hns_roce_v2r12/kernel/CMakeLists.txt
+
+diff --git a/open_source/hns_roce_v2r12/kernel/CMakeLists.txt b/open_source/hns_roce_v2r12/kernel/CMakeLists.txt
+new file mode 100644
+index 00000000000..d17acce57c6
+--- /dev/null
++++ b/open_source/hns_roce_v2r12/kernel/CMakeLists.txt
+@@ -0,0 +1,13 @@
++cmake_minimum_required(VERSION 3.18.1)
++project(hiroce5 C ASM)
++project(hiroce5 VERSION 1.0.0)
++
++
++add_custom_target(hiroce5_ko
++    COMMENT echo "build ${CMAKE_CURRENT_SOURCE_DIR} start for hiroce5.ko ."
++    COMMAND ${MAKE} CONFIG_INFINIBAND_HNS=m -j16 -C ${KDIR} M=${CMAKE_CURRENT_BINARY_DIR} src=${CMAKE_CURRENT_SOURCE_DIR}
++    COMMAND cp -f *.ko ${CMAKE_INSTALL_PREFIX}/ko
++    DEPENDS kernel
++    DEPENDS hisdk5_ko
++    DEPENDS hinic5_ko
++)
+\ No newline at end of file
+diff --git a/open_source/hns_roce_v2r12/kernel/Makefile b/open_source/hns_roce_v2r12/kernel/Makefile
+index 55e55fcfeda..e5aa3f5c0d1 100644
+--- a/open_source/hns_roce_v2r12/kernel/Makefile
++++ b/open_source/hns_roce_v2r12/kernel/Makefile
+@@ -37,9 +37,13 @@ EXTRA_CFLAGS += -I$(DPU_ROOT_DIR)/src/dpu_platform_library/fw/npu/include/base
+ EXTRA_CFLAGS += -I$(DPU_ROOT_DIR)/src/dpu_platform_library/host/service/roce/linux/kernel/include
+ EXTRA_CFLAGS += -I$(DPU_ROOT_DIR)/platform/huawei_secure_c/include
+
+-
+-ifeq ($(CONFIG_UBUS_DEVICE), y)
++#这个宏需要取消注释，但流水线出包需要保留（这些依赖在编译机上）
++ifeq ($(CONFIG_UBUS_DEVICE), y)
+ EXTRA_CFLAGS += -D__UBUS_DRIVER__
++# TODO 这里要链接上编译机中的本地依赖路径
++EXTRA_CFLAGS += -I/home/s00893904/1872ROCE_UB2ETH/UbusTrunk/opensource/openeuler/kernel/olk-6.6/include/linux
++KBUILD_EXTRA_SYMBOLS += /home/s00893904/1872ROCE_UB2ETH/UbusTrunk/build_cache/ub_beta_fpga_4k/cmake/ChipSolution/src/dpu_platform_library/host/sdk/knldk/lld/Module.symvers
++KBUILD_EXTRA_SYMBOLS += /home/s00893904/1872ROCE_UB2ETH/UbusTrunk/build_cache/ub_beta_fpga_4k/cmake/ChipSolution/src/dpu_platform_library/host/service/nic/linux/Module.symvers
+ else
+ KBUILD_EXTRA_SYMBOLS += $(DPU_ROOT_DIR)/ci/lib/SDK_Module.symvers
+ KBUILD_EXTRA_SYMBOLS += $(DPU_ROOT_DIR)/ci/lib/NIC_Module.symvers
+diff --git a/open_source/hns_roce_v2r12/kernel/hns_roce_main.c b/open_source/hns_roce_v2r12/kernel/hihtr_main.c
+index 106415f1f24..0a2b9583d75 100644
+--- a/open_source/hns_roce_v2r12/kernel/hihtr_main.c
++++ b/open_source/hns_roce_v2r12/kernel/hihtr_main.c
+@@ -1404,11 +1404,12 @@ int hihtr_init(struct hihtr_dev *hr_dev)
+ 	}
+
+ 	/* EQ depends on poll mode, event mode depends on EQ */
+-	ret = hr_dev->hw->init_eq(hr_dev);
+-	if (ret) {
+-		dev_err(dev, "eq init failed!\n");
+-		goto error_failed_eq_table;
+-	}
++	// TODO 1650 ubc场景下没有给roce事件模式分配中断，所以暂时规避
++	// ret = hr_dev->hw->init_eq(hr_dev);
++	// if (ret) {
++	// 	dev_err(dev, "eq init failed!\n");
++	// 	goto error_failed_eq_table;
++	// }
+
+ 	ret = hihtr_init_hem(hr_dev);
+ 	if (ret) {
+@@ -1456,7 +1457,7 @@ error_failed_setup_hca:
+ error_failed_init_hem:
+ 	hr_dev->hw->cleanup_eq(hr_dev);
+
+-error_failed_eq_table:
++// error_failed_eq_table:
+ 	hihtr_cmd_cleanup(hr_dev);
+
+ error_failed_alloc_dfx_cnt:
+diff --git a/open_source/hns_roce_v2r12/user/hihtr_u_abi.h b/open_source/hns_roce_v2r12/user/hihtr_u_abi.h
+index d3636abc6ab..51f28910d8f 100644
+--- a/open_source/hns_roce_v2r12/user/hihtr_u_abi.h
++++ b/open_source/hns_roce_v2r12/user/hihtr_u_abi.h
+@@ -104,6 +104,18 @@ DECLARE_DRV_CMD(hihtr_create_qp, IB_USER_VERBS_CMD_CREATE_QP,
+ DECLARE_DRV_CMD(hihtr_create_qp_ex, IB_USER_VERBS_EX_CMD_CREATE_QP,
+ 		hihtr_ib_create_qp2, hihtr_ib_create_qp_resp);
+
++
++// 编译环境问题，没有6.6内核环境，导致用户态驱动不能匹配内核态驱动
++// 所以需要手动定义Linux版本
++#ifdef LINUX_VERSION_CODE
++#undef LINUX_VERSION_CODE
++#define LINUX_VERSION_CODE 394752
++#endif
++
++
++
++
++
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
+ // 适配openeluer 24.03 ; 正常来说应该定义在kernel-headers目录
+ struct hihtr_ib_create_srq_6_6 {
+diff --git a/open_source/hns_roce_v2r12/user/hihtr_u_verbs.c b/open_source/hns_roce_v2r12/user/hihtr_u_verbs.c
+index 338fd765c56..4fe788da0a2 100644
+--- a/open_source/hns_roce_v2r12/user/hihtr_u_verbs.c
++++ b/open_source/hns_roce_v2r12/user/hihtr_u_verbs.c
+@@ -609,6 +609,12 @@ static void free_srq_buf(struct hihtr_srq *srq)
+ 	free(srq->idx_que.bitmap);
+ }
+
++// 编译环境问题 TODO
++#ifdef LINUX_VERSION_CODE
++#undef LINUX_VERSION_CODE
++#define LINUX_VERSION_CODE 394752
++#endif
++
+ static int exec_srq_create_cmd(struct ibv_context *context,
+ 			       struct hihtr_srq *srq,
+ 			       struct ibv_srq_init_attr_ex *init_attr)
+diff --git a/src/dpu_platform_library/fw/imp/roce/cfg_bin/ncl_cfg_1h/NCL0.yaml b/src/dpu_platform_library/fw/imp/roce/cfg_bin/ncl_cfg_1h/NCL0.yaml
+index fe624902cd4..20f323d976f 100644
+--- a/src/dpu_platform_library/fw/imp/roce/cfg_bin/ncl_cfg_1h/NCL0.yaml
++++ b/src/dpu_platform_library/fw/imp/roce/cfg_bin/ncl_cfg_1h/NCL0.yaml
+@@ -1,7 +1,7 @@
+ '0':
+   RSV: { bit_field: [3, 31], value: 0x0 }
+   xrc_opcode_mode(0x1): { bit_field: [1, 2], value: 0x1 }
+-  scc_bypass_flag: { bit_field: [0, 0], value: 0x0 }
++  scc_bypass_flag: { bit_field: [0, 0], value: 0x1 }
+ '4':
+   RSV: { bit_field: [26, 31], value: 0x0 }
+   srqc_bt_num(0x40): { bit_field: [16, 25], value: 0x40 }
+@@ -267,7 +267,7 @@
+ '100':
+   RSV: { bit_field: [0, 31], value: 0x0 }
+ '104':
+-  cap_flags: { bit_field: [20, 31], value: 0x77f }
++  cap_flags: { bit_field: [20, 31], value: 0x57f }
+   max_pd_shift: { bit_field: [0, 19], value: 0x16 }
+ '108':
+   RSV: { bit_field: [29, 31], value: 0x0 }
+@@ -331,7 +331,7 @@
+   aeq_period: { bit_field: [16, 31], value: 0x10 }
+   aeq_max_cnt: { bit_field: [0, 15], value: 0x1 }
+ '14c':
+-  cap_flags: { bit_field: [20, 31], value: 0x77f }
++  cap_flags: { bit_field: [20, 31], value: 0x57f }
+   max_pd_shift: { bit_field: [0, 19], value: 0x16 }
+ '150':
+   RSV: { bit_field: [29, 31], value: 0x0 }
+@@ -395,7 +395,7 @@
+   aeq_period: { bit_field: [16, 31], value: 0x10 }
+   aeq_max_cnt: { bit_field: [0, 15], value: 0x1 }
+ '194':
+-  cap_flags: { bit_field: [20, 31], value: 0x77f }
++  cap_flags: { bit_field: [20, 31], value: 0x57f }
+   max_pd_shift: { bit_field: [0, 19], value: 0x16 }
+ '198':
+   RSV: { bit_field: [29, 31], value: 0x0 }
+@@ -459,7 +459,7 @@
+   aeq_period: { bit_field: [16, 31], value: 0x10 }
+   aeq_max_cnt: { bit_field: [0, 15], value: 0x1 }
+ '1dc':
+-  cap_flags: { bit_field: [20, 31], value: 0x77f }
++  cap_flags: { bit_field: [20, 31], value: 0x57f }
+   max_pd_shift: { bit_field: [0, 19], value: 0x16 }
+ '1e0':
+   RSV: { bit_field: [29, 31], value: 0x0 }
+diff --git a/src/dpu_platform_library/host/sdk/knldk/lld/hinic5_ubus.c b/src/dpu_platform_library/host/sdk/knldk/lld/hinic5_ubus.c
+index 29b3f1293d3..91fcf9a180d 100644
+--- a/src/dpu_platform_library/host/sdk/knldk/lld/hinic5_ubus.c
++++ b/src/dpu_platform_library/host/sdk/knldk/lld/hinic5_ubus.c
+@@ -256,6 +256,11 @@ static int hinic5_ubus_probe(struct ub_dev *ubus_dev, const struct ub_device_id
+
+ 	sdk_info(&ubus_dev->dev, "Ubus device probe begin\n");
+
++	if (ubus_dev->fe_idx > 3 && ubus_dev->fe_idx < 8) {
++		sdk_info(&ubus_dev->dev, "cyw debug : Not probe fe_idx = %d\n", ubus_dev->fe_idx);
++		return 0;
++	}
++
+ 	err = hinic5_ubus_init(ubus_dev);
+ 	if (err != 0)
+ 		goto out;
+diff --git a/src/dpu_platform_library/host/service/nic/linux/ctrl/hinic5_main.c b/src/dpu_platform_library/host/service/nic/linux/ctrl/hinic5_main.c
+index 80f3f42d351..624be895c52 100644
+--- a/src/dpu_platform_library/host/service/nic/linux/ctrl/hinic5_main.c
++++ b/src/dpu_platform_library/host/service/nic/linux/ctrl/hinic5_main.c
+@@ -41,7 +41,7 @@
+ #include "hinic5_profile.h"
+ #include "hinic5_main.h"
+
+-#define CFM_BOND_FULL
++// #define CFM_BOND_FULL unic暂未支持bond
+
+ #define DEFAULT_POLL_WEIGHT	64
+ static unsigned int poll_weight = DEFAULT_POLL_WEIGHT;
+diff --git a/tools/chip_cfg/hi1872v100/cfg_data/fpga/roce/eth_4x25G_1h_roce.xml b/tools/chip_cfg/hi1872v100/cfg_data/fpga/roce/eth_4x25G_1h_roce.xml
+index 30d2c796b50..88fd9bf1965 100644
+--- a/tools/chip_cfg/hi1872v100/cfg_data/fpga/roce/eth_4x25G_1h_roce.xml
++++ b/tools/chip_cfg/hi1872v100/cfg_data/fpga/roce/eth_4x25G_1h_roce.xml
+@@ -11,7 +11,7 @@
+ 				<ddie_hw_mode_en_bmp>%u32%0xFFF</ddie_hw_mode_en_bmp>
+ 				<ddie_pd_power_gating_bmp>%u32%0x1FF</ddie_pd_power_gating_bmp>
+ 				<ddie_pd_mode_en_bmp>%u32%0x7FFFFF</ddie_pd_mode_en_bmp>
+-				<brd_cfg_mng_mode>%u32:3%0</brd_cfg_mng_mode>
++				<brd_cfg_mng_mode>%u32:3%3</brd_cfg_mng_mode>
+ 				<rsvd5>%u32:29%0</rsvd5>
+ 				<rsvd6>%u32%0</rsvd6>
+ 				<rsvd7>%u32%0</rsvd7>
+diff --git a/tools/chip_cfg/hi1872v100/cfg_excel/fpga/roce/eth_4x25G_1h_roce.xlsm b/tools/chip_cfg/hi1872v100/cfg_excel/fpga/roce/eth_4x25G_1h_roce.xlsm
+index 3dcc6a3a74b..f1d9d0e6547 100644
+--- a/tools/chip_cfg/hi1872v100/cfg_excel/fpga/roce/eth_4x25G_1h_roce.xlsm
++++ b/tools/chip_cfg/hi1872v100/cfg_excel/fpga/roce/eth_4x25G_1h_roce.xlsm
+@@ -1,3 +1,3 @@
+ version https://git-lfs.github.com/spec/v1
+-oid sha256:605439900613e569c8cf7b43de1a47d7f35fdd71e8e13f4bbd84b839fbd32107
+-size 1404034
++oid sha256:ee66f6f719f390a1f58ec1662c96efa689550e04dab95060268649352f294fd4
++size 1405392
+--
+2.24.0
+

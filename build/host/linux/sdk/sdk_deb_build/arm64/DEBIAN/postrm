@@ -1,0 +1,9 @@
+#!/bin/bash
+
+echo "Uninstalling... Please wait for a moment."
+
+depmod -a
+
+update-initramfs -u -v -k $(uname -r) >/dev/null 2>&1
+
+echo "Uninstall hisdk5 driver package successfully."

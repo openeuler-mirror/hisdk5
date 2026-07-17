@@ -1,0 +1,19 @@
+#!/bin/bash
+
+echo "Uninstalling... Please wait for a moment."
+
+lib_path=/usr/lib/$(arch)-linux-gnu
+
+if [ -L $lib_path/libhihtr-rdmav*.so ]; then
+    rm $lib_path/libhihtr-rdmav*.so
+fi
+
+if [ -L $lib_path/libhihtr.so.1 ]; then
+    rm $lib_path/libhihtr.so.1
+fi
+
+depmod -a
+
+update-initramfs -u -v -k $(uname -r) >/dev/null 2>&1
+
+echo "Uninstall hihtr5 driver package successfully."
