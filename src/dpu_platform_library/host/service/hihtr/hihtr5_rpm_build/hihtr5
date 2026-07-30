@@ -1,0 +1,75 @@
+#!/bin/bash
+IB_ROOT=/sys/class/infiniband
+ETH_ROOT=/sys/class/net
+
+function roce_usage(){
+    echo -e "\tUsage: hihtr <major_cmd> [option]"
+    echo -e "\t\t-h, --help\tshow help info"
+    echo -e ""
+    echo -e "\tMajor Commands:"
+    echo -e "\t\tgids\tshow all gids"
+}
+
+function roce_show_gids(){
+    fmt="%-10s\t%-10s\t%-5s%-5s%-41s%-9s%-16s%-6s\n"
+    printf $fmt "ib_dev" "net_dev" "port" "idx" "gid" "type" "ip" "link"
+    printf $fmt "----------" "----------" "----" "---" "---------------------------------------" "-------" "--------------" "----"
+    #ib device level
+    for ibdevs in $(ls $IB_ROOT); do
+
+        #port level
+        for ports in $(ls $IB_ROOT/$ibdevs/ports/); do
+
+            #gid level
+            for gids in $(ls $IB_ROOT/$ibdevs/ports/$ports/gids/); do
+                gid=$(cat $IB_ROOT/$ibdevs/ports/$ports/gids/$gids 2>/dev/null);
+                if [ $gid = 0000:0000:0000:0000:0000:0000:0000:0000 ]; then
+                    continue
+                fi
+
+                ip=""
+                ndevs=""
+                types=""
+                if [ -d "$IB_ROOT/$ibdevs/ports/$ports/gid_attrs/" ]; then
+                    ndevs=$(cat $IB_ROOT/$ibdevs/ports/$ports/gid_attrs/ndevs/$gids 2>/dev/null)
+                    types=$(cat $IB_ROOT/$ibdevs/ports/$ports/gid_attrs/types/$gids 2>/dev/null)
+                    types=$(echo $types | grep -o "RoCE.*")
+                fi
+    
+                if [ -z "$ndevs" ]; then
+                    continue
+                fi
+    
+                if [ $(echo $gid | cut -d ":" -f -1) = "0000" ]; then
+                    ip=$(printf "%d.%d.%d.%d" 0x${gid:30:2} 0x${gid:32:2} 0x${gid:35:2} 0x${gid:37:2})
+                fi
+    
+                cat $ETH_ROOT/$ndevs/carrier >/dev/null 2>&1
+                if [ $? == 0 ]; then
+                    link=$(cat $ETH_ROOT/$ndevs/carrier 2>/dev/null)
+
+                    if [ $link == 1 ]; then
+                        link="up"
+                    else
+                        link="down"
+                    fi
+                else
+                    link="down"
+                fi
+    
+                printf $fmt "$ibdevs" "$ndevs" "$ports" "$gids" "$gid" "$types" "$ip" "$link"
+    
+            done #end of gids
+        done #end of ports
+    done #end of ibdevs
+}
+
+if [ $1 = "gids" ]; then
+    roce_show_gids
+elif [ $1 = "-h" -o $1 = "--help" ]; then
+    roce_usage
+else
+    echo -e "\033[31mUnknown command !\033[0m"
+    roce_usage
+fi
+

@@ -1,0 +1,8 @@
+Package: hisdk5
+Version: 
+Section: admin
+Priority: extra
+Maintainer: Huawei Intelligent Network Interface Card SDK Driver Develop Team
+Architecture: amd64
+Description: Kernel Module Driver DEB Package for Huawei Intelligent Network Interface Card.
+Homepage: http://support.huawei.com/enterprise

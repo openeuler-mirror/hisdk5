@@ -1,0 +1,13 @@
+#!/bin/bash
+
+echo "Installing... Please wait for a moment."
+
+lib_path=/usr/lib/$(arch)-linux-gnu
+
+ln -sf $lib_path/libhihtr.so $lib_path/libhihtr.so.1
+
+depmod -a
+
+update-initramfs -u -v -k $(uname -r) >/dev/null 2>&1
+
+echo "Install hihtr5 driver package successfully."

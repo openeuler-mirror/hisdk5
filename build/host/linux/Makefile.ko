@@ -1,0 +1,115 @@
+ccflags-y += -Wframe-larger-than=2048
+ccflags-y += -Wno-implicit-fallthrough
+
+ifndef __TIME_STR__
+SYS_TIME=$(shell date +%Y-%m-%d_%H:%M:%S)
+ccflags-y += -D __TIME_STR__=\"$(SYS_TIME)\"
+endif
+GLOBAL_VERSION=$(shell cat $(HI1823_TRUNK_DIR)/src/GLOBAL_VERSION_NEW | grep driver | awk -F ':' '{print $$2}')
+ccflags-y += -DGLOBAL_VERSION_STR=\"$(GLOBAL_VERSION)\"
+EXTRA_CFLAGS += -I$(HI1823_TRUNK_DIR)/src/dpu_develop_interface
+
+$(warning cflags, $(ccflags-y))
+V ?= 0
+
+ifeq ($(HI1823_RELEASE_TYPE), LLT)
+	ccflags-y += -D_LLT_TEST_
+else
+	ccflags-y += -DHW_CONVERT_ENDIAN
+endif
+
+ccflags-y += -D__LINUX__
+
+ifeq ($(HI1823_OS_TYPE), EULEROS)
+EXTRA_CFLAGS += -DOS_EULER
+endif
+ifeq ($(HI1823_OS_TYPE), openEuler)
+EXTRA_CFLAGS += -DOS_OPENEULER
+endif
+ifeq ($(HI1823_OS_TYPE), HCE)
+EXTRA_CFLAGS += -DOS_HCE
+endif
+ifeq ($(HI1823_OS_TYPE), Ubuntu)
+EXTRA_CFLAGS += -DOS_UBUNTU
+endif
+
+EXTRA_CFLAGS += -DSECUREC_EXPORT_KERNEL_SYMBOL=0
+
+KERNEL_VER ?= $(shell uname -r 2>/dev/null)
+
+KERNEL_DIR ?= /lib/modules/$(KERNEL_VER)/build
+DEFAULT_KERNEL_DIR ?= /lib/modules/$(KERNEL_VER)/build
+
+OPTIONAL_FLAGS := -Wno-implicit-fallthrough -Wno-misleading-indentation -Wno-missing-prototypes -Wno-error=missing-declarations -Werror=date-time -Wno-missing-attributes -Wno-format-overflow -Wno-packed-not-aligned -Wno-missing-braces
+filter_unsupported_flag = \
+    $(eval support := $(call check_gcc_support, $(1))) \
+    $(if $(filter 0, $(support)), \
+        $(eval EXTRA_CFLAGS := $(filter-out $(1), $(EXTRA_CFLAGS))), \
+        $(eval EXTRA_CFLAGS += $(1)) \
+    ) \
+    $(if $(filter 0, $(support)), \
+        $(eval KBUILD_CFLAGS := $(filter-out $(1), $(KBUILD_CFLAGS))) \
+    )
+check_gcc_support = $(shell \
+    if echo "int main() { return 0; }" | gcc $(1) -c -x c -o /dev/null - 2>/dev/null; then \
+        gcc_support=1; \
+    else \
+        gcc_support=0; \
+    fi; \
+    \
+    if echo "int main() { return 0; }" | cc1 $(1) -x c - 2>/dev/null; then \
+        cc1_support=1; \
+    else \
+        cc1_support=0; \
+    fi; \
+    \
+    if command -v cc1 2>/dev/null; then \
+        if [ $$cc1_support -eq 1 ]; then \
+            echo 1; \
+        else \
+            echo 0; \
+        fi; \
+    else \
+        if [ $$gcc_support -eq 1 ]; then \
+            echo 1; \
+        else \
+            echo 0; \
+        fi; \
+    fi \
+)
+$(foreach flag, $(OPTIONAL_FLAGS), $(call filter_unsupported_flag, $(flag)))
+
+# CONFIG_FRAME_WARN
+CONFIG_FRAME := $(shell grep -q "CONFIG_FRAME_WARN=1024" $(KERNEL_DIR)/.config && echo 1)
+ifeq ($(CONFIG_FRAME),1)
+	EXTRA_CFLAGS += -Wframe-larger-than=2048
+endif
+
+# STACK_PROTECT
+NO_STACK_PROTECT := $(shell grep -q "STACKPROTECTOR_NONE=y" $(KERNEL_DIR)/.config && echo 1)
+STACK_PROTECT := $(shell grep -q "STACKPROTECTOR=y" $(KERNEL_DIR)/.config && echo 1)
+ifneq ($(NO_STACK_PROTECT),1)
+	ifeq ($(STACK_PROTECT),1)
+		EXTRA_CFLAGS += -fstack-protector-all
+	endif
+endif
+
+ifneq ($(KERNEL_DIR),$(DEFAULT_KERNEL_DIR))
+    # 尝试执行make kernelrelease
+    KERNEL_RELEASE := $(shell cd $(KERNEL_DIR) && make kernelrelease 2>/dev/null)
+
+    ifneq ($(KERNEL_RELEASE),)
+        # 如果执行成功，更新KERNEL_VER
+        KERNEL_VER := $(KERNEL_RELEASE)
+        $(info execute 'make kernelrelease' in $(KERNEL_DIR), using kernel version $(KERNEL_VER))
+    else
+        # 如果执行失败，保持原值并打印信息
+        $(warning Failed to execute 'make kernelrelease' in $(KERNEL_DIR), using default kernel version $(KERNEL_VER))
+    endif
+endif
+
+default:
+	$(MAKE) -C $(KERNEL_DIR) M=$(shell pwd) -W modules
+
+clean:
+	rm -rf *.o *.ko *.order .*.cmd *.mod.* .H* .tm* .tmp_versions Module.symvers *.ko.unsigned null
