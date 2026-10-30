@@ -1,7 +1,7 @@
-# kmod-hisdk5
+# hisdk5
 
 #### Description
-kmod-hisdk5 - Anolis OS package
+hisdk5 - Anolis OS package
 
 #### Software Architecture
 Software architecture description

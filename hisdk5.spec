@@ -1,15 +1,15 @@
 %global pkg hisdk5
-%global kernel kernel version
+%global kernel %(uname -r | sed -e 's/.aarch64//g' -e 's/.x86_64//g' -e 's/.arm64//g' -e 's/.amd64//g' | sed 's/-/_/g')
 %define pkg_version 100.0.1.202
-%define anolis_release 1
+%define oe_release 1
 
-Name:        kmod-%{pkg}
-Version:     %(echo %{kernel} | sed -E 's/-/~/g; s/\.(an|al)[0-9]+$//g')
-Release:     %{pkg_version}~%{anolis_release}%{?dist}
+Name:        %{pkg}
+Version:     %{pkg_version}
+Release:     %{oe_release}%{?dist}.%(echo %{kernel} | sed 's/.*\.//')
 Summary:     Huawei HISDK5 Kernel Module
 License:     GPLv2
 URL:         http://support.huawei.com/enterprise
-Source0:     kmod-%{pkg}-%{pkg_version}.tar.gz
+Source0:     %{pkg}-%{pkg_version}.tar.gz
 Epoch:       1
 
 %define debug_package %{nil}
@@ -33,20 +33,20 @@ BuildRequires:    kmod
 BuildRequires:    make
 BuildRequires:    system-rpm-config
 
-Provides: kmod-%{pkg}-%{kernel}.%{_arch} = %{version}-%{release}
-Obsoletes: kmod-%{pkg}-%{kernel}.%{_arch} < %{version}-%{release}
+Provides: %{pkg}-%{kernel}.%{_arch} = %{version}-%{release}
+Obsoletes: %{pkg}-%{kernel}.%{_arch} < %{version}-%{release}
 
 %description
 RPM Package for Huawei HISDK5 Driver
 
 %prep
-%setup -q -n kmod-%{pkg}-%{pkg_version}
+%setup -q -n %{pkg}-%{pkg_version}
 
 %build
-export HI1823_BUILD_DIR=%{_builddir}/kmod-%{pkg}-%{pkg_version}/build
-export HI1823_TRUNK_DIR=%{_builddir}/kmod-%{pkg}-%{pkg_version}
+export HI1823_BUILD_DIR=%{_builddir}/%{pkg}-%{pkg_version}/build
+export HI1823_TRUNK_DIR=%{_builddir}/%{pkg}-%{pkg_version}
 export KERNEL_VER=%{kernel}
-export TOP_DIR=%{_builddir}/kmod-%{pkg}-%{pkg_version}
+export TOP_DIR=%{_builddir}/%{pkg}-%{pkg_version}
 
 bash ./build.sh -d sdk
 

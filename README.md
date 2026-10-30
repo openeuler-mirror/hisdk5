@@ -1,7 +1,7 @@
-# kmod-hisdk5
+# hisdk5
 
 #### 介绍
-kmod-hisdk5 - Anolis OS package
+hisdk5 - Anolis OS package
 
 #### 软件架构
 软件架构说明
